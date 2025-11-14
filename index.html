@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Valorant ランダムピック</title>
+<style>
+  :root{
+    --bg:#0b1014;
+    --card:#0f1720;
+    --accent:#ff4655;
+    --muted:#9aa4ad;
+    --glass: rgba(255,255,255,0.03);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans JP", "Yu Gothic UI", "Hiragino Kaku Gothic ProN", "Meiryo", sans-serif;
+  }
+  html,body{height:100%; margin:0; background:linear-gradient(180deg,#071018 0%, #08131a 100%); color:#e6eef6}
+  .wrap{max-width:920px;margin:40px auto;padding:28px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:14px;box-shadow:0 6px 30px rgba(0,0,0,0.6);}
+  header{display:flex;align-items:center;gap:16px;margin-bottom:18px}
+  h1{font-size:20px;margin:0}
+  .controls{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px;align-items:center}
+  .control-group{display:flex;gap:8px;align-items:center}
+  label{font-size:13px;color:var(--muted)}
+  select,input[type=number]{background:var(--card);border:1px solid rgba(255,255,255,0.04);padding:8px;border-radius:8px;color:inherit}
+  button{background:var(--accent);color:white;border:none;padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:600}
+  button.alt{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted)}
+  .result-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-top:18px}
+  .slot{background:var(--glass);border-radius:10px;padding:12px;min-height:110px;display:flex;flex-direction:column;align-items:center;justify-content:center; text-align:center; transition: transform .35s cubic-bezier(.2,.9,.3,1), box-shadow .2s}
+  .slot.flash{transform:translateY(-8px) scale(1.02); box-shadow:0 14px 40px rgba(0,0,0,0.6)}
+  .agent-name{font-weight:700;margin-top:8px}
+  .agent-role{font-size:12px;color:var(--muted);margin-top:4px}
+  .agent-img{width:64px;height:64px;border-radius:8px;background:linear-gradient(135deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));display:flex;align-items:center;justify-content:center;overflow:hidden}
+  .small{font-size:12px;color:var(--muted)}
+  .footer{display:flex;justify-content:space-between;align-items:center;margin-top:18px;gap:12px;flex-wrap:wrap}
+  .settings{display:flex;gap:8px;align-items:center}
+  .agents-editor{margin-top:18px;background:rgba(255,255,255,0.02);padding:12px;border-radius:10px}
+  textarea{width:100%;min-height:120px;background:#07121a;border:1px solid rgba(255,255,255,0.03);color:#cfe7ff;padding:10px;border-radius:8px;font-family:monospace;font-size:13px}
+  .hint{font-size:12px;color:var(--muted);margin-top:6px}
+  @media (max-width:880px){
+    .result-grid{grid-template-columns:repeat(2,1fr)}
+  }
+</style>
+</head>
+<body>
+<div class="wrap" role="application" aria-label="Valorant ランダムピック">
+  <header>
+    <img src="" alt="" id="logo" style="width:44px;height:44px;border-radius:8px;background:linear-gradient(45deg,#ff4655,#7b61ff)">
+    <div>
+      <h1>Valorant ランダムピック</h1>
+      <div class="small">スペースキーでもピックできます — リストは下で編集可能</div>
+    </div>
+  </header>
+
+  <div class="controls" role="region" aria-label="操作">
+    <div class="control-group">
+      <label for="num">ピック数</label>
+      <select id="num" title="選ぶ枠数">
+        <option value="1">1</option>
+        <option value="2" selected>2</option>
+        <option value="3">3</option>
+        <option value="4">4</option>
+        <option value="5">5</option>
+      </select>
+    </div>
+
+    <div class="control-group">
+      <label for="allowDup">重複を許可</label>
+      <input type="checkbox" id="allowDup" />
+    </div>
+
+    <div class="control-group">
+      <label for="roleFilter">ロールで絞る</label>
+      <select id="roleFilter">
+        <option value="all">すべて</option>
+        <option value="Duelist">Duelist</option>
+        <option value="Initiator">Initiator</option>
+        <option value="Controller">Controller</option>
+        <option value="Sentinel">Sentinel</option>
+      </select>
+    </div>
+
+    <div style="margin-left:auto;display:flex;gap:8px">
+      <button id="pickBtn">ランダムピック</button>
+      <button id="copyBtn" class="alt">結果をコピー</button>
+    </div>
+  </div>
+
+  <main>
+    <div id="description" class="small">枠を選んで「ランダムピック」を押すかスペースキーを押すとピックされます。</div>
+
+    <div class="result-grid" id="resultGrid" aria-live="polite">
+      <!-- ここにスロットが入る -->
+    </div>
+
+    <div class="footer">
+      <div class="small">© Valorant Random Picker — リストは下で編集</div>
+      <div class="settings small">ショートカット: <strong>Space</strong> = ピック</div>
+    </div>
+
+    <section class="agents-editor" aria-label="エージェント編集">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+        <strong>エージェントリスト（JSON形式）</strong>
+        <div class="small">各エージェントは <code>{ "name": "...", "role": "Duelist", "img": "path/or/url" }</code> の形</div>
+      </div>
+      <textarea id="agentsArea" spellcheck="false"></textarea>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button id="loadDefault">デフォルト読み込み</button>
+        <button id="applyList" class="alt">リスト反映</button>
+      </div>
+      <div class="hint">※ 画像は相対パスか外部URLを入れてください。画像がないとアイコンの代わりに名前イニシャルが表示されます。</div>
+    </section>
+  </main>
+</div>
+
+<script>
+/* ======= 編集可能エージェント（デフォルト） =======
+   必要ならここを編集／追加してから「デフォルト読み込み」や
+   textareaの内容を変えて「リスト反映」を押してください。
+   img フィールドは省略可能。 */
+const defaultAgents = [
+  {name:"Jett", role:"Duelist", img:""},
+  {name:"Phoenix", role:"Duelist", img:""},
+  {name:"Reyna", role:"Duelist", img:""},
+  {name:"Neon", role:"Duelist", img:""},
+  {name:"Raze", role:"Duelist", img:""},
+  {name:"Sage", role:"Sentinel", img:""},
+  {name:"Cypher", role:"Sentinel", img:""},
+  {name:"Killjoy", role:"Sentinel", img:""},
+  {name:"Skye", role:"Initiator", img:""},
+  {name:"Sova", role:"Initiator", img:""},
+  {name:"Breach", role:"Initiator", img:""},
+  {name:"Fade", role:"Initiator", img:""},
+  {name:"Viper", role:"Controller", img:""},
+  {name:"Omen", role:"Controller", img:""},
+  {name:"Astra", role:"Controller", img:""},
+  {name:"Brimstone", role:"Controller", img:""}
+];
+
+let agents = [...defaultAgents];
+
+const resultGrid = document.getElementById('resultGrid');
+const pickBtn = document.getElementById('pickBtn');
+const copyBtn = document.getElementById('copyBtn');
+const numSelect = document.getElementById('num');
+const allowDup = document.getElementById('allowDup');
+const roleFilter = document.getElementById('roleFilter');
+const agentsArea = document.getElementById('agentsArea');
+const loadDefault = document.getElementById('loadDefault');
+const applyList = document.getElementById('applyList');
+
+function init(){
+  // テキストエリアに初期JSONを入れておく
+  agentsArea.value = JSON.stringify(agents, null, 2);
+  renderSlots(Number(numSelect.value));
+}
+function renderSlots(n){
+  resultGrid.innerHTML = '';
+  for(let i=0;i<n;i++){
+    const div = document.createElement('div');
+    div.className = 'slot';
+    div.dataset.index = i;
+    div.innerHTML = `<div class="agent-img" aria-hidden="true"><span class="initial"></span></div>
+                     <div class="agent-name">--</div>
+                     <div class="agent-role"></div>`;
+    resultGrid.appendChild(div);
+  }
+}
+
+function pickRandom(){
+  const count = Number(numSelect.value);
+  const allowRepeat = allowDup.checked;
+  const role = roleFilter.value;
+  let pool = agents.slice();
+  if(role !== 'all'){
+    pool = pool.filter(a=>a.role === role);
+  }
+  if(pool.length === 0){
+    alert('選択されたロールにエージェントがいません。エージェントリストを確認してください。');
+    return;
+  }
+
+  const picks = [];
+  if(allowRepeat){
+    for(let i=0;i<count;i++){
+      const r = pool[Math.floor(Math.random()*pool.length)];
+      picks.push(r);
+    }
+  } else {
+    // 重複なし（poolがcount未満ならシャッフルして不足分はランダムで補う）
+    const shuffled = pool.slice().sort(()=>Math.random()-0.5);
+    for(let i=0;i<count;i++){
+      if(i < shuffled.length){
+        picks.push(shuffled[i]);
+      } else {
+        // 全員取り切ったら残りはランダム（同じものが出る可能性あり）
+        picks.push(pool[Math.floor(Math.random()*pool.length)]);
+      }
+    }
+  }
+  showPicks(picks);
+}
+
+function showPicks(picks){
+  const slots = Array.from(resultGrid.children);
+  // アニメーションで順に表示
+  slots.forEach((slot, i)=>{
+    const agent = picks[i] || null;
+    if(!agent){
+      slot.querySelector('.agent-name').textContent = '--';
+      slot.querySelector('.agent-role').textContent = '';
+      slot.querySelector('.initial').textContent = '';
+      slot.querySelector('.agent-img').style.backgroundImage = '';
+      return;
+    }
+    // small 'reveal' animation
+    slot.classList.remove('flash');
+    setTimeout(()=>slot.classList.add('flash'), 50 + i*80);
+    slot.querySelector('.agent-name').textContent = agent.name;
+    slot.querySelector('.agent-role').textContent = agent.role || '';
+    const imgWrap = slot.querySelector('.agent-img');
+    const initial = slot.querySelector('.initial');
+    if(agent.img){
+      // 画像があれば背景表示
+      imgWrap.style.backgroundImage = `url("${agent.img}")`;
+      imgWrap.style.backgroundSize = 'cover';
+      imgWrap.style.backgroundPosition = 'center';
+      initial.textContent = '';
+    } else {
+      imgWrap.style.backgroundImage = '';
+      const initials = agent.name.split(' ').map(s=>s[0]).slice(0,2).join('').toUpperCase();
+      initial.textContent = initials;
+    }
+  });
+}
+
+function copyResult(){
+  const names = Array.from(resultGrid.children).map(s => s.querySelector('.agent-name').textContent).filter(Boolean);
+  if(names.length === 0) { alert('結果がありません'); return; }
+  const text = `Valorant ランダムピック: ${names.join(' / ')}`;
+  navigator.clipboard?.writeText(text).then(()=>{
+    alert('結果をコピーしました:\n' + text);
+  }).catch(()=>{
+    prompt('コピーに失敗しました。以下を手動でコピーしてください', text);
+  });
+}
+
+// JSONをパースしてリスト反映
+function applyAgentsFromTextarea(){
+  try{
+    const parsed = JSON.parse(agentsArea.value);
+    if(!Array.isArray(parsed)) throw new Error('配列ではありません');
+    // 最低限 name があるかチェック
+    for(const a of parsed){
+      if(!a.name) throw new Error('各オブジェクトに name が必要です');
+      if(!a.role) a.role = 'Duelist';
+    }
+    agents = parsed;
+    alert('エージェントリストを更新しました (' + agents.length + ' 件)');
+  }catch(e){
+    alert('JSON 解析エラー: ' + e.message);
+  }
+}
+
+// イベント
+pickBtn.addEventListener('click', pickRandom);
+copyBtn.addEventListener('click', copyResult);
+numSelect.addEventListener('change', ()=>renderSlots(Number(numSelect.value)));
+loadDefault.addEventListener('click', ()=>{
+  agents = [...defaultAgents];
+  agentsArea.value = JSON.stringify(agents, null, 2);
+  alert('デフォルトリストを読み込みました');
+});
+applyList.addEventListener('click', applyAgentsFromTextarea);
+
+// スペースキーでピック
+document.addEventListener('keydown', (e)=>{
+  if(e.code === 'Space' && !/input|textarea/i.test(document.activeElement.tagName)){
+    e.preventDefault();
+    pickRandom();
+  }
+});
+
+// 初期描画
+init();
+</script>
+</body>
+</html>
