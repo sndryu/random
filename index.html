@@ -90,27 +90,6 @@
     <div class="result-grid" id="resultGrid" aria-live="polite">
       <!-- ここにスロットが入る -->
     </div>
-
-    <div class="footer">
-      <div class="small">© Valorant Random Picker — リストは下で編集</div>
-      <div class="settings small">ショートカット: <strong>Space</strong> = ピック</div>
-    </div>
-
-    <section class="agents-editor" aria-label="エージェント編集">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
-        <strong>エージェントリスト（JSON形式）</strong>
-        <div class="small">各エージェントは <code>{ "name": "...", "role": "Duelist", "img": "path/or/url" }</code> の形</div>
-      </div>
-      <textarea id="agentsArea" spellcheck="false"></textarea>
-      <div style="display:flex;gap:8px;margin-top:8px">
-        <button id="loadDefault">デフォルト読み込み</button>
-        <button id="applyList" class="alt">リスト反映</button>
-      </div>
-      <div class="hint">※ 画像は相対パスか外部URLを入れてください。画像がないとアイコンの代わりに名前イニシャルが表示されます。</div>
-    </section>
-  </main>
-</div>
-
 <script>
 /* ======= 編集可能エージェント（デフォルト） =======
    必要ならここを編集／追加してから「デフォルト読み込み」や
